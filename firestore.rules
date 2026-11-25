@@ -1,0 +1,316 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email == 'arshadkhan99711@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'role', 'jobTitle', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == userId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+        data.role in ['admin', 'operator', 'viewer'] &&
+        (!('jobTitle' in data) || (data.jobTitle is string && data.jobTitle.size() <= 100)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateAccount(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'notificationsEnabled', 'autoApproveLowRisk', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'notificationsEnabled', 'autoApproveLowRisk', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == userId &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        data.notificationsEnabled is bool &&
+        data.autoApproveLowRisk is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminGrant(data, userId) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'grantedBy', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.uid == userId &&
+        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidIncident(data, incidentId) {
+      return data.keys().hasAll(['id', 'ownerId', 'code', 'title', 'severity', 'status', 'service', 'environment', 'detectedAt', 'description', 'isDemo', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'code', 'title', 'severity', 'status', 'service', 'environment',
+          'detectedAt', 'resolvedAt', 'description', 'logs', 'relatedFile', 'codeBefore',
+          'codeAfter', 'rootCause', 'recommendedSolution', 'confidence', 'resolutionMinutes',
+          'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == incidentId &&
+        isValidId(data.ownerId) &&
+        data.code is string && data.code.size() >= 2 && data.code.size() <= 32 &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 200 &&
+        data.severity in ['Critical', 'High', 'Medium', 'Low'] &&
+        data.status in ['Detected', 'Analyzing', 'Patch Ready', 'Awaiting Approval', 'Tests Passed', 'Deployed', 'Resolved', 'Rolled Back'] &&
+        data['service'] is string && data['service'].size() >= 1 && data['service'].size() <= 80 &&
+        data.environment in ['production', 'staging', 'canary'] &&
+        data.detectedAt is string && data.detectedAt.size() >= 1 && data.detectedAt.size() <= 64 &&
+        (!('resolvedAt' in data) || (data.resolvedAt is string && data.resolvedAt.size() <= 64)) &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 2000 &&
+        (!('logs' in data) || (data.logs is string && data.logs.size() <= 15000)) &&
+        (!('relatedFile' in data) || (data.relatedFile is string && data.relatedFile.size() <= 256)) &&
+        (!('codeBefore' in data) || (data.codeBefore is string && data.codeBefore.size() <= 15000)) &&
+        (!('codeAfter' in data) || (data.codeAfter is string && data.codeAfter.size() <= 15000)) &&
+        (!('rootCause' in data) || (data.rootCause is string && data.rootCause.size() <= 4000)) &&
+        (!('recommendedSolution' in data) || (data.recommendedSolution is string && data.recommendedSolution.size() <= 4000)) &&
+        (!('confidence' in data) || ((data.confidence is int || data.confidence is float) && data.confidence >= 0 && data.confidence <= 100)) &&
+        (!('resolutionMinutes' in data) || ((data.resolutionMinutes is int || data.resolutionMinutes is float) && data.resolutionMinutes >= 0 && data.resolutionMinutes <= 100000)) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidIntegration(data, integrationId) {
+      return data.keys().hasAll(['id', 'ownerId', 'provider', 'status', 'accountLabel', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'provider', 'category', 'status', 'accountLabel',
+          'endpointUrl', 'credentialFingerprint', 'lastSyncAt', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == integrationId &&
+        isValidId(data.ownerId) &&
+        data.provider is string && data.provider.size() >= 1 && data.provider.size() <= 64 &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 64)) &&
+        data.status in ['Connected', 'Demo Data', 'Disconnected', 'Error'] &&
+        data.accountLabel is string && data.accountLabel.size() >= 1 && data.accountLabel.size() <= 160 &&
+        (!('endpointUrl' in data) || (data.endpointUrl is string && data.endpointUrl.size() <= 512)) &&
+        (!('credentialFingerprint' in data) || (data.credentialFingerprint is string && data.credentialFingerprint.size() <= 128)) &&
+        (!('lastSyncAt' in data) || (data.lastSyncAt is string && data.lastSyncAt.size() <= 64)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidDeployment(data, deploymentId) {
+      return data.keys().hasAll(['id', 'ownerId', 'incidentId', 'incidentCode', 'service', 'patchTitle', 'status', 'approvedByUid', 'verifiedByBackend', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'incidentId', 'incidentCode', 'service', 'patchTitle',
+          'status', 'approvedByUid', 'approvedByName', 'testPassedCount', 'testTotalCount',
+          'verifiedByBackend', 'verificationNotes', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == deploymentId &&
+        isValidId(data.ownerId) &&
+        isValidId(data.incidentId) &&
+        data.incidentCode is string && data.incidentCode.size() >= 2 && data.incidentCode.size() <= 32 &&
+        data['service'] is string && data['service'].size() >= 1 && data['service'].size() <= 80 &&
+        data.patchTitle is string && data.patchTitle.size() >= 1 && data.patchTitle.size() <= 200 &&
+        data.status in ['Dry Run Verified', 'Deployed', 'Rolled Back', 'Failed'] &&
+        isValidId(data.approvedByUid) &&
+        (!('approvedByName' in data) || (data.approvedByName is string && data.approvedByName.size() <= 120)) &&
+        (!('testPassedCount' in data) || (data.testPassedCount is int && data.testPassedCount >= 0 && data.testPassedCount <= 10000)) &&
+        (!('testTotalCount' in data) || (data.testTotalCount is int && data.testTotalCount >= 0 && data.testTotalCount <= 10000)) &&
+        data.verifiedByBackend is bool &&
+        (!('verificationNotes' in data) || (data.verificationNotes is string && data.verificationNotes.size() <= 1000)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data, logId) {
+      return data.keys().hasAll(['id', 'ownerId', 'actorUid', 'actorRole', 'action', 'targetType', 'targetId', 'details', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'ownerId', 'actorUid', 'actorRole', 'action', 'targetType', 'targetId', 'details', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.id == logId &&
+        isValidId(data.ownerId) &&
+        isValidId(data.actorUid) &&
+        data.actorRole is string && data.actorRole.size() >= 1 && data.actorRole.size() <= 32 &&
+        data.action is string && data.action.size() >= 1 && data.action.size() <= 100 &&
+        data.targetType is string && data.targetType.size() >= 1 && data.targetType.size() <= 64 &&
+        data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+        data.details is string && data.details.size() >= 1 && data.details.size() <= 1000 &&
+        data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().role in ['operator', 'viewer'] || (incoming().role == 'admin' && isBootstrapAdmin()));
+      allow update: if isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (isOwner(userId) &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'jobTitle', 'updatedAt']))
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow list: if false;
+        allow create: if isValidId(userId) && isValidId(docId) &&
+          docId == 'account' &&
+          isOwner(userId) &&
+          isValidUserPrivateAccount(incoming(), userId) &&
+          incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(docId) &&
+          docId == 'account' &&
+          (isOwner(userId) || isAdmin()) &&
+          isValidUserPrivateAccount(incoming(), userId) &&
+          incoming().uid == existing().uid &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'notificationsEnabled', 'autoApproveLowRisk', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(docId) && isAdmin();
+      }
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if false;
+      allow create: if isValidId(userId) &&
+        isValidAdminGrant(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        (isAdmin() || (isOwner(userId) && isBootstrapAdmin()));
+      allow update: if false;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /incidents/{incidentId} {
+      allow get: if isValidId(incidentId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'arshadkhan99711@gmail.com');
+      allow create: if isValidId(incidentId) &&
+        isSignedIn() &&
+        isValidIncident(incoming(), incidentId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(incidentId) &&
+        isSignedIn() &&
+        isValidIncident(incoming(), incidentId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid && (
+              (existing().status != 'Resolved' &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rootCause', 'recommendedSolution', 'confidence', 'logs', 'relatedFile', 'updatedAt'])) ||
+              (existing().status != 'Resolved' &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['status', 'codeAfter', 'recommendedSolution', 'updatedAt'])) ||
+              (existing().status != 'Resolved' &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolutionMinutes', 'updatedAt'])) ||
+              (existing().status in ['Deployed', 'Resolved'] &&
+                incoming().status == 'Rolled Back' &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+            )
+          )
+        );
+      allow delete: if isValidId(incidentId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /integrations/{integrationId} {
+      allow get: if isValidId(integrationId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'arshadkhan99711@gmail.com');
+      allow create: if isValidId(integrationId) &&
+        isSignedIn() &&
+        isValidIntegration(incoming(), integrationId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(integrationId) &&
+        isSignedIn() &&
+        isValidIntegration(incoming(), integrationId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'accountLabel', 'endpointUrl', 'credentialFingerprint', 'lastSyncAt', 'updatedAt']))
+        );
+      allow delete: if isValidId(integrationId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /deployments/{deploymentId} {
+      allow get: if isValidId(deploymentId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'arshadkhan99711@gmail.com');
+      allow create: if isValidId(deploymentId) &&
+        isSignedIn() &&
+        isValidDeployment(incoming(), deploymentId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().approvedByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/incidents/$(incoming().incidentId));
+      allow update: if isValidId(deploymentId) &&
+        isSignedIn() &&
+        isValidDeployment(incoming(), deploymentId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().incidentId == existing().incidentId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (existing().ownerId == request.auth.uid &&
+            existing().status in ['Dry Run Verified', 'Deployed'] &&
+            incoming().status == 'Rolled Back' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'verificationNotes', 'updatedAt']))
+        );
+      allow delete: if isValidId(deploymentId) && isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'arshadkhan99711@gmail.com');
+      allow create: if isValidId(logId) &&
+        isSignedIn() &&
+        isValidAuditLog(incoming(), logId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

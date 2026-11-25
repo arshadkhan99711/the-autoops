@@ -1,0 +1,396 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Workspace operator profile without PII",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "operator", "viewer"]
+        },
+        "jobTitle": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "UserPrivateAccount": {
+      "title": "UserPrivateAccount",
+      "description": "Isolated private account settings and PII",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "notificationsEnabled": {
+          "type": "boolean"
+        },
+        "autoApproveLowRisk": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "notificationsEnabled", "autoApproveLowRisk", "updatedAt"]
+    },
+    "AdminGrant": {
+      "title": "AdminGrant",
+      "description": "Explicit administrator privilege record",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "grantedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "grantedBy", "createdAt"]
+    },
+    "Incident": {
+      "title": "Incident",
+      "description": "Software incident with logs, AI root cause analysis, and patch state",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["Critical", "High", "Medium", "Low"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Detected", "Analyzing", "Patch Ready", "Awaiting Approval", "Tests Passed", "Deployed", "Resolved", "Rolled Back"]
+        },
+        "service": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["production", "staging", "canary"]
+        },
+        "detectedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "resolvedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "logs": {
+          "type": "string",
+          "maxLength": 15000
+        },
+        "relatedFile": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "codeBefore": {
+          "type": "string",
+          "maxLength": 15000
+        },
+        "codeAfter": {
+          "type": "string",
+          "maxLength": 15000
+        },
+        "rootCause": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "recommendedSolution": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "resolutionMinutes": {
+          "type": "number"
+        },
+        "isDemo": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "code", "title", "severity", "status", "service", "environment", "detectedAt", "description", "isDemo", "createdAt", "updatedAt"]
+    },
+    "Integration": {
+      "title": "Integration",
+      "description": "Connected DevOps/Cloud integration metadata without plaintext secrets",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Connected", "Demo Data", "Disconnected", "Error"]
+        },
+        "accountLabel": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "endpointUrl": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "credentialFingerprint": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lastSyncAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "provider", "status", "accountLabel", "createdAt", "updatedAt"]
+    },
+    "DeploymentRecord": {
+      "title": "DeploymentRecord",
+      "description": "Approved patch test and deployment verification log",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "incidentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "incidentCode": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "service": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "patchTitle": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Dry Run Verified", "Deployed", "Rolled Back", "Failed"]
+        },
+        "approvedByUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "approvedByName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "testPassedCount": {
+          "type": "integer"
+        },
+        "testTotalCount": {
+          "type": "integer"
+        },
+        "verifiedByBackend": {
+          "type": "boolean"
+        },
+        "verificationNotes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "incidentId", "incidentCode", "service", "patchTitle", "status", "approvedByUid", "verifiedByBackend", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and deployment audit trail",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actorUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "actorRole": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "targetType": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "targetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "actorUid", "actorRole", "action", "targetType", "targetId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile metadata excluding PII"
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateAccount" },
+      "description": "Isolated private account settings and user email"
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminGrant" },
+      "description": "Administrator privilege lookup records"
+    },
+    "/incidents/{incidentId}": {
+      "schema": { "$ref": "#/entities/Incident" },
+      "description": "User-owned incidents, AI diagnostics, and code patches"
+    },
+    "/integrations/{integrationId}": {
+      "schema": { "$ref": "#/entities/Integration" },
+      "description": "Connected cloud and DevOps integration metadata"
+    },
+    "/deployments/{deploymentId}": {
+      "schema": { "$ref": "#/entities/DeploymentRecord" },
+      "description": "Patch verification, approval, and rollback deployment records"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable security audit log records"
+    }
+  }
+}
